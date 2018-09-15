@@ -5,18 +5,12 @@
 // =================================================================================
 
 const {App} = require('jovo-framework');
+const awsSDK = require('aws-sdk');
+const docClient = new awsSDK.DynamoDB.DocumentClient();
 
-// Using the constructor
 const config = {
     logging: true,
-    db: {
-        type: 'dynamodb',
-        tableName: 'Businesses',
-    },
 };
-
-// Using the setter
-app.setDynamoDb('Businesses');
 const app = new App(config);
 
 
@@ -26,15 +20,44 @@ const app = new App(config);
 
 app.setHandler({
     'LAUNCH': function() {
-        this.toIntent('HelloWorldIntent');
+        const getBody = {
+            TableName: "Businesses",
+            Key: {
+                businessID: 0
+            }
+        };
+        
+        docClient.get(getBody).promise().then((data) => {
+            console.log(data);
+            this.tell("hi");
+        
+        })
+        .catch((err)=>{
+            console.log(err);
+            this.tell(err)});
     },
 
     'BookAllInfoProvided' : function(
         appointmentType, business, 
-        location, date, time) {
-        let customerName = this.AlexaUser().getName();
-        let customerEmail = this.AlexaUser().getEmail();
-        let customerPhone = this.AlexaUser().getMobileNumber();
+        location, date, time, staff) {
+
+        /* let customerName = this.AlexaUser().getName()
+            .then((name) => {
+                return name;
+            }).catch((error) => {
+                if (error.code === 'NO_USER_PERMISSION') {
+                    this.alexaSkill().showAskForContactPermissionCard('name')
+                        .tell(`Please grant access to your full name.`);
+                }
+            })
+        let customerEmail = this.AlexaUser().getEmail()
+            .then((email) => {
+                return email;
+            }).catch((error) => {
+            if (error.code === 'NO_USER_PERMISSION') {
+                this.alexaSkill().showAskForContactPermissionCard('email')
+                    .tell(`Please grant access to your email address.`);
+            }
         let businessData = dynamo_read(business, location);
         let bookingAPIPayload = 
         `{
@@ -43,7 +66,7 @@ app.setHandler({
             "customer_email":"${customerEmail}",
 
         }`
-        this.ask("hello", "reprompt ");
+        this.ask("hello", "reprompt "); */
     },
 
     'HelloWorldIntent': function() {
@@ -55,13 +78,5 @@ app.setHandler({
     },
 });
 
-<<<<<<< HEAD
-function formatDate(date, hour) {
-    var dateString = date + "T";
-    let abbreviationStrings = []
-}
-=======
-
->>>>>>> f0daf1b51bb10383a7ed32d33848e72ffd02b013
 
 module.exports.app = app;
