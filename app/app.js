@@ -6,10 +6,17 @@
 
 const {App} = require('jovo-framework');
 
+// Using the constructor
 const config = {
     logging: true,
+    db: {
+        type: 'dynamodb',
+        tableName: 'Businesses',
+    },
 };
 
+// Using the setter
+app.setDynamoDb('Businesses');
 const app = new App(config);
 
 
@@ -48,9 +55,13 @@ app.setHandler({
     },
 });
 
+<<<<<<< HEAD
 function formatDate(date, hour) {
     var dateString = date + "T";
     let abbreviationStrings = []
 }
+=======
+
+>>>>>>> f0daf1b51bb10383a7ed32d33848e72ffd02b013
 
 module.exports.app = app;
