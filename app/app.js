@@ -6,10 +6,17 @@
 
 const {App} = require('jovo-framework');
 
+// Using the constructor
 const config = {
     logging: true,
+    db: {
+        type: 'dynamodb',
+        tableName: 'Businesses',
+    },
 };
 
+// Using the setter
+app.setDynamoDb('Businesses');
 const app = new App(config);
 
 
@@ -30,5 +37,7 @@ app.setHandler({
         this.tell('Hey ' + name.value + ', nice to meet you!');
     },
 });
+
+
 
 module.exports.app = app;
