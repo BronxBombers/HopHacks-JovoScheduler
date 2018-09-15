@@ -29,13 +29,20 @@ app.setHandler({
         this.toIntent('HelloWorldIntent');
     },
 
+    //Handler for intent
     'BookAllInfoProvided' : function(
         appointmentType, business, 
-        location, date, time) {
+        location, date, time, staff) {
         let customerName = this.AlexaUser().getName();
         let customerEmail = this.AlexaUser().getEmail();
-        let customerPhone = this.AlexaUser().getMobileNumber();
+        //let customerPhone = this.AlexaUser().getMobileNumber();
         let businessData = dynamo_read(business, location);
+        //Create API call through this intent
+        let xhttp = new XMLHttpRequest();
+        xhttp.open("GET", "https://api.timekit.io/v2/resources", "false");
+        xhttp.setRequestHeader("Authentication", "test_api_key_Nx576ghNNP5jnaZKGL8Z3vbqTCBxtdnE");
+        xhttp.send();
+        /*
         let bookingAPIPayload = 
         `{
             "start_datetime":"",
@@ -43,6 +50,7 @@ app.setHandler({
             "customer_email":"${customerEmail}",
 
         }`
+        */
         this.ask("hello", "reprompt ");
     },
 
@@ -55,13 +63,11 @@ app.setHandler({
     },
 });
 
-<<<<<<< HEAD
 function formatDate(date, hour) {
     var dateString = date + "T";
     let abbreviationStrings = []
 }
-=======
 
->>>>>>> f0daf1b51bb10383a7ed32d33848e72ffd02b013
+
 
 module.exports.app = app;
