@@ -7,7 +7,7 @@
 const {App} = require('jovo-framework');
 const awsSDK = require('aws-sdk');
 var moment = require('moment');
-var request = require('request-promise');
+var request = require('request');
 var stringSimilarity = require('string-similarity');
 var AWS = require('aws-sdk');
 const docClient = new awsSDK.DynamoDB.DocumentClient({apiVersion: '2012-08-10'});
@@ -107,58 +107,27 @@ app.setHandler({
             return checkForKeyValue(businessName.value, 'businessNames')
             .then((dbValue) => {
                 if (typeof dbValue === "string"){
-                    this.addSessionAttribute('businessName', dbValue);
-                    const getBody = {
-                        TableName:'Businesses',
-                        FilterExpression:'businessName = :businessName',
-                        ExpressionAttributeValues:{ ":businessName" : dbValue }
+                    var params = {
+                        TableName: "Businesses",
+                        FilterExpression: "#businessName = :businessNameVal",
+                        ExpressionAttributeNames: {
+                            "#businessName": "businessName",
+                        },
+                        ExpressionAttributeValues: { ":businessNameVal": dbValue }
+                    
                     };
-                    return docClient.scan(getBody).promise()
+                    return docClient.scan(params).promise()
                         .then((data) => {
-                            if (data != undefined) {
-                                var sessionString;
-                                var response = "There are multiple locations of this business, which one would you like to book with? Your options are ";
-                                console.log("Querying for all businesses in database");
-
-                                var params = {
-                                    TableName: "Businesses",
-                                    FilterExpression: "#businessName = :businessNameVal",
-                                    ExpressionAttributeNames: {
-                                        "#businessName": "businessName",
-                                    },
-                                    ExpressionAttributeValues: { ":businessNameVal": 'a-list beauty team' }
-                                
-                                };
-
-                                var count = 0;
-                                function onScan(err, data) {
-                                    if (err) {
-                                        console.error("Unable to scan the table. Error JSON:", JSON.stringify(err, null, 2));
-                                    } else {        
-                                        console.log("Scan succeeded.");
-                                        data.Items.forEach(function(itemdata) {
-                                           console.log("Item :", ++count,JSON.stringify(itemdata));
-                                           response += JSON.stringify(itemdata.location);
-                                           console.log("Response: " + response);
-                                        });
-                                
-                                        // continue scanning if we have more items
-                                        if (typeof data.LastEvaluatedKey != "undefined") {
-                                            console.log("Scanning for more...");
-                                            params.ExclusiveStartKey = data.LastEvaluatedKey;
-                                            docClient.scan(params, onScan);
-                                        }
-                                    }
-                                }
-                                
-                                docClient.scan(params, onScan);
-                                console.log(JSON.stringify(sessionString));
-                                this.addSessionAttribute('possibleLocations', sessionString);
-                                this.followUpState('LocationName').ask(response);
-                            } else {
-                                this.addSessionAttribute('locationName', data.locationName);
-                                this.toStatelessIntent('FinalizeBooking');
-                            }
+                            let businessData = data.Items[0];
+                            let location = businessData.location;
+                            let name = businessData.businessName;                        
+                            let resID = businessData.resourceID;
+                            let APItoken = businessData.businessID;
+                            this.addSessionAttribute('APItoken', APItoken);
+                            this.addSessionAttribute('resourceID', resID);
+                            this.addSessionAttribute('locationName', location);
+                            this.addSessionAttribute('businessName', name);
+                            this.toStatelessIntent('FinalizeBooking');
                         })
                         .catch((err) =>{
                             console.log(err);
@@ -239,66 +208,50 @@ app.setHandler({
     'OrderConfirmationState' : {
         'AMAZON.YesIntent' : function() {
             let bookingType = this.getSessionAttribute('bookingType');
-            let startTime = this.getSessionAttribute('startTime');
-            let endTime = this.getSessionAttribute('endTime');
+            let s = this.getSessionAttribute('startTime');
+            let e = this.getSessionAttribute('endTime');
             let businessName = this.getSessionAttribute('businessName');
             let locationName = this.getSessionAttribute('locationName');
-            const getBody = {
-                TableName: "Businesses",
-                Key: {
-                    businessName: business.value,
-                    locationName: location.value
-                }
-            };
+            let resourceID = this.getSessionAttribute('resourceID');
+            let APItoken = this.getSessionAttribute('APItoken');
+           
+            let nStart = new Date(e);
+            let nEnd = new Date(e);
+            let startTime = nStart.toISOString();
+            let endTime = nEnd.toISOString();
             return this.user().getName()
                 .then((name) => {
-                    this.user().getEmail()
+                    return this.user().getEmail()
                         .then((email) => {
-                            docClient.get(getBody).promise()
-                                .then((data) => {
-                                    //succesfully made it down the waterfall
-                                    let resNames = data.resourceNames;
-                                    let resourceIndex = resNames.indexOf(appointmentType.value);
-                                    let resourceID = data.resourceID[resourceIndex];
-                                    let bookingAPIPayload = 
-                                    `{
-                                        "resource_id":"${resourceID}",
-                                        "graph":"instant",
-                                        "what":"${appointmentType},
-                                        "where":"${location.value}",
-                                        "description":"${appointmentType.value} booking",
-                                        "customer":{
-                                            "name":"${name}",
-                                            "email":"${email}"
-                                        },
-                                        "start":"${startTime}",
-                                        "end":"${endTime}"
-                                    }`;
-                                    let authToken = data.apiToken;
-                                    var options = {
-                                        method: 'POST',
-                                        uri: 'https://api.timekit.io/v2/bookings',
-                                        body: {
-                                            some: bookingAPIPayload
-                                        },
-                                        json: true,
-                                        resolveWithFullResponse: true
-                                    };
-                                    request(options)
-                                        .then((response) => {
-                                            //if (response.statusCode === 200){
-                                                this.tell("Your " + appointmentType + " was successfully booked! Check your email for confirmation.");
-                                            //}
-                                        })
-                                        .catch((err) =>{
-                                            console.log(err);
-                                        })
-                                })
-                                .catch((err) => {
-                                    console.log(err);
-                                    console.log("error in getting the document");
-                                    this.toIntent('nearbyBusiness')
-                                });
+                            console.log("made it into payload section")
+                            let bookingAPIPayload = 
+                            `{
+                                "resource_id":"${resourceID}",
+                                "graph":"instant",
+                                "what":"${appointmentType},
+                                "where":"${locationName}",
+                                "description":"${bookingType} booking",
+                                "customer":{
+                                    "name":"${name}",
+                                    "email":"${email}"
+                                },
+                                "start":"${startTime}",
+                                "end":"${endTime}"
+                            }`;
+                            let authToken = APItoken;
+                            var options = {
+                                method: 'POST',
+                                url: 'https://api.timekit.io/v2/bookings',
+                                headers: {
+                                    Authorization : "Basic :" + authToken
+                                },
+                                json: bookingAPIPayload,
+                            };
+                            request.post(options), function(error, response, body){
+                                console.log("help");
+                                this.ask("Your " + bookingType + " was successfully booked! Check your email for confirmation."); 
+                            } 
+                            this.ask("your booking has been made");   
                         })
                         .catch((error) => {
                             if (error.code === 'NO_USER_PERMISSION') {
