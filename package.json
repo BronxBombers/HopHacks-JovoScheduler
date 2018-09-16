@@ -7,7 +7,11 @@
     "@google/maps": "^0.5.5",
     "aws-sdk": "^2.315.0",
     "es6-promisify": "^6.0.0",
-    "jovo-framework": "^1.4.9"
+    "jovo-framework": "^1.4.9",
+    "moment": "^2.22.2",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.2",
+    "string-similarity": "^1.2.2"
   },
   "devDependencies": {},
   "scripts": {
